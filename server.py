@@ -94,10 +94,79 @@ class LenderServicer(lender_pb2_grpc.LenderServicer):
 
     def CalcAvgLoan(self, request, context):
         """
-        Calculate the average loan amount for a given county_code.
+        Calculate average loan amount for a county.
+        Reuse county-specific cached Parquet files when possible.
         """
-        print(f"Received CalcAvgLoan request for county_code: {request.county_code}")
-        return lender_pb2.CalcAvgLoanResp(avg_loan=0, source="not implemented", error="not implemented")
+        county_code = request.county_code
+        print(f"Received CalcAvgLoan request for county_code: {county_code}")
+
+        try:
+            os.environ["CLASSPATH"] = subprocess.check_output(
+                ["hadoop", "classpath", "--glob"], text=True
+            ).strip()
+
+            hdfs = pafs.HadoopFileSystem(host="nn", port=9000)
+            county_path = f"/partitions/{county_code}.parquet"
+
+            try:
+                table = pq.read_table(county_path, filesystem=hdfs)
+                source = "reuse"
+            except FileNotFoundError:
+                table = pq.read_table(
+                    "/hdma-wi-2021.parquet",
+                    filesystem=hdfs,
+                    filters=[("county_code", "=", float(county_code))]
+                )
+
+                try:
+                    hdfs.create_dir("/partitions")
+                except Exception:
+                    pass
+
+                hdfs_1x = pafs.HadoopFileSystem(
+                    host="nn",
+                    port=9000,
+                    replication=1,
+                    default_block_size=1024 * 1024,
+                )
+                with hdfs_1x.open_output_stream(county_path) as out:
+                    pq.write_table(table, out)
+
+                source = "create"
+            except OSError:
+                table = pq.read_table(
+                    "/hdma-wi-2021.parquet",
+                    filesystem=hdfs,
+                    filters=[("county_code", "=", float(county_code))]
+                )
+
+                try:
+                    hdfs.create_dir("/partitions")
+                except Exception:
+                    pass
+
+                hdfs_1x = pafs.HadoopFileSystem(
+                    host="nn",
+                    port=9000,
+                    replication=1,
+                    default_block_size=1024 * 1024,
+                )
+                with hdfs_1x.open_output_stream(county_path) as out:
+                    pq.write_table(table, out)
+
+                source = "recreate"
+
+            loan_amount = table.column("loan_amount").to_pandas()
+            avg_loan = int(loan_amount.mean())
+
+            return lender_pb2.CalcAvgLoanResp(
+                avg_loan=avg_loan,
+                source=source,
+                error=""
+            )
+        except Exception as e:
+            return lender_pb2.CalcAvgLoanResp(avg_loan=0, source="", error=str(e))
+
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))
