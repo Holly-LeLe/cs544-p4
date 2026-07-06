@@ -7,6 +7,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pyarrow.fs as pafs
+import requests
 from sqlalchemy import create_engine
 
 
@@ -71,10 +72,25 @@ class LenderServicer(lender_pb2_grpc.LenderServicer):
 
     def BlockLocations(self, request, context):
         """
-        Get the block locations of the Parquet file in HDFS.
+        Return a dictionary showing how many HDFS blocks are stored on each DataNode.
         """
         print(f"Received BlockLocations request for path: {request.path}")
-        return lender_pb2.BlockLocationsResp(block_entries={}, error="not implemented")
+
+        try:
+            url = f"http://nn:9870/webhdfs/v1{request.path}?op=GETFILEBLOCKLOCATIONS"
+            resp = requests.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            counts = {}
+            blocks = data["BlockLocations"]["BlockLocation"]
+            for block in blocks:
+                for host in block.get("hosts", []):
+                    counts[host] = counts.get(host, 0) + 1
+
+            return lender_pb2.BlockLocationsResp(block_entries=counts, error="")
+        except Exception as e:
+            return lender_pb2.BlockLocationsResp(block_entries={}, error=str(e))
 
     def CalcAvgLoan(self, request, context):
         """
