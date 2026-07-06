@@ -1,0 +1,36 @@
+
+# 2026-07-06 10:10:12.674164
++n
+
+# 2026-07-06 10:10:18.154243
++/exit
+
+# 2026-07-06 10:18:35.540238
++read lender.proto and summarize the calls
+
+# 2026-07-06 10:19:20.097489
++read client.py. What port does it use?
+
+# 2026-07-06 10:19:34.907112
++read https://git.doit.wisc.edu/cdis/cs/courses/cs544/su26/su26mainrepo/-/blob/main/lec/06-grpc/final_code/server.py. What does the example code do, and how many threads are there?
+
+# 2026-07-06 10:20:00.838482
++n
+
+# 2026-07-06 10:20:22.473727
++read /home/wli682@ad.wisc.edu/su26mainrepo/lec/06-grpc/server.py. What does the example code do, and how many threads are there?
+
+# 2026-07-06 10:21:03.642879
++/add /home/wli682@ad.wisc.edu/su26mainrepo/lec/06-grpc/server.py
+
+# 2026-07-06 10:21:48.527731
++Write a server.py here, like the grpc server example, but implementing lender.proto. Just create the methods, not code bodies yet. For now, return "not implemented" in error fields when possible. client.py will use the server you write. Use grpc.server(futures.ThreadPoolExecutor(max_workers=8)).
+
+# 2026-07-06 10:21:57.799736
++y
+
+# 2026-07-06 10:22:03.450704
++exit
+
+# 2026-07-06 10:22:22.672989
++/exit
